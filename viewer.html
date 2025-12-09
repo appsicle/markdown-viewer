@@ -13,7 +13,7 @@
     URL format: viewer.html#md=COMPRESSED_STRING
 
     Uses:
-    - lz-string for compression (~2KB gzipped)
+    - pako for deflate compression (~46KB)
     - marked for markdown parsing (~7KB gzipped)
   -->
 
@@ -138,57 +138,72 @@
     </div>
   </article>
 
-  <!-- lz-string for decompression -->
-  <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+  <!-- pako for deflate decompression -->
+  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 
   <!-- marked for markdown parsing -->
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
 
   <script>
     // ============================================================
+    // Compression utilities using pako (deflate + base64url)
+    // ============================================================
+
+    function compressToBase64Url(str) {
+      var bytes = new TextEncoder().encode(str);
+      var compressed = pako.deflateRaw(bytes);
+      var binary = '';
+      for (var i = 0; i < compressed.length; i++) {
+        binary += String.fromCharCode(compressed[i]);
+      }
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+
+    function decompressFromBase64Url(base64url) {
+      try {
+        var base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) base64 += '=';
+        var binary = atob(base64);
+        var bytes = new Uint8Array(binary.length);
+        for (var i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        var decompressed = pako.inflateRaw(bytes);
+        return new TextDecoder().decode(decompressed);
+      } catch (e) {
+        console.error('Decompression failed:', e);
+        return null;
+      }
+    }
+
+    // ============================================================
     // VIEWER: Read hash, decompress, render markdown
     // ============================================================
     (function() {
       'use strict';
 
-      /**
-       * Extract the 'md' parameter from the URL hash
-       * @returns {string|null} Compressed markdown string or null
-       */
       function getCompressedFromHash() {
-        const hash = location.hash.slice(1); // Remove leading '#'
+        var hash = location.hash.slice(1);
         if (!hash) return null;
-
-        // Parse hash as URL params (e.g., md=ABC123)
-        const params = new URLSearchParams(hash);
+        var params = new URLSearchParams(hash);
         return params.get('md');
       }
 
-      /**
-       * Decompress and render markdown to the page
-       */
       function render() {
-        const compressed = getCompressedFromHash();
-        if (!compressed) return; // Keep empty state
+        var compressed = getCompressedFromHash();
+        if (!compressed) return;
 
-        // Decompress using lz-string
-        const markdown = LZString.decompressFromEncodedURIComponent(compressed);
+        var markdown = decompressFromBase64Url(compressed);
         if (!markdown) {
           console.error('Failed to decompress markdown from URL');
           return;
         }
 
-        // Parse markdown to HTML using marked
-        const html = marked.parse(markdown);
-
-        // Render to page
+        var html = marked.parse(markdown);
         document.getElementById('content').innerHTML = html;
       }
 
-      // Render on page load
       render();
-
-      // Re-render if hash changes (e.g., user navigates)
       window.addEventListener('hashchange', render);
     })();
 
@@ -202,19 +217,13 @@
     // This will log the full shareable URL to the console.
     // ============================================================
 
-    /**
-     * Create a shareable URL with compressed markdown
-     * @param {string} markdown - Raw markdown content
-     * @returns {string} Full URL with compressed markdown in hash
-     */
     function createShareableURL(markdown) {
-      const compressed = LZString.compressToEncodedURIComponent(markdown);
-      const url = location.origin + location.pathname + '#md=' + compressed;
+      var compressed = compressToBase64Url(markdown);
+      var url = location.origin + location.pathname + '#md=' + compressed;
       console.log('Shareable URL:\n' + url);
       return url;
     }
 
-    // Expose globally for console use
     window.createShareableURL = createShareableURL;
   </script>
 </body>

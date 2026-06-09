@@ -1,5 +1,7 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import TurndownService from 'turndown';
+import { gfm } from 'turndown-plugin-gfm';
 
 marked.setOptions({
   gfm: true,
@@ -18,6 +20,26 @@ export function parseMarkdown(markdown) {
   return rawHtml;
 }
 
+let turndown;
+
+// Serialize the live contenteditable DOM back to markdown source.
+export function htmlToMarkdown(html) {
+  if (!turndown) {
+    turndown = new TurndownService({
+      headingStyle: 'atx',
+      codeBlockStyle: 'fenced',
+      hr: '---',
+      bulletListMarker: '-',
+      emDelimiter: '*',
+    });
+    turndown.use(gfm);
+  }
+  const md = turndown.turndown(html);
+  // Turndown escapes markdown syntax characters it finds in plain text
+  // (\*\*bold\*\*). Unescape them so syntax the user types goes live.
+  return md.replace(/\\([\\`*_{}[\]()#+\-.!>~|=])/g, '$1');
+}
+
 export const sampleMarkdown = `# Welcome to Markdown Viewer
 
 A beautiful, distraction-free reading experience.
@@ -30,7 +52,7 @@ A beautiful, distraction-free reading experience.
 
 ## Getting Started
 
-Click the **Edit** button in the top bar to paste your own markdown content.
+This page **is** the editor — click anywhere and just type. Try typing some \`markdown syntax\` and watch it render the moment you complete it.
 
 ---
 

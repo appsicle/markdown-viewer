@@ -13,7 +13,9 @@
 		"pako": "^2.1.0",
 		"preact": "^10.26.9",
 		"preact-iso": "^2.11.0",
-		"preact-render-to-string": "^6.6.3"
+		"preact-render-to-string": "^6.6.3",
+		"turndown": "^7.2.4",
+		"turndown-plugin-gfm": "^1.0.2"
 	},
 	"devDependencies": {
 		"@preact/preset-vite": "^2.10.2",

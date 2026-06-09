@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'preact/hooks';
 import pako from 'pako';
 import { TopBar } from './components/TopBar';
 import { MarkdownViewer } from './components/MarkdownViewer';
-import { PasteDialog } from './components/PasteDialog';
 import { sampleMarkdown } from './utils/markdown';
 
 function compressToBase64Url(str) {
@@ -52,8 +51,12 @@ function setMarkdownToHash(markdown) {
 }
 
 export function App() {
-  const [markdown, setMarkdown] = useState(sampleMarkdown);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  // `external` counts updates that did NOT originate from the editor
+  // (initial hash load, hashchange navigation). The viewer only rewrites
+  // its DOM when this counter moves — inferring external changes from
+  // markdown inequality is racy because effects can run with stale props
+  // while the user is typing.
+  const [doc, setDoc] = useState({ md: sampleMarkdown, external: 0 });
   const initialized = useRef(false);
 
   // Load from hash on client mount
@@ -62,7 +65,7 @@ export function App() {
       initialized.current = true;
       const hashMarkdown = getMarkdownFromHash();
       if (hashMarkdown) {
-        setMarkdown(hashMarkdown);
+        setDoc({ md: hashMarkdown, external: 1 });
       } else {
         // No hash content, set the sample to URL
         setMarkdownToHash(sampleMarkdown);
@@ -70,33 +73,35 @@ export function App() {
     }
   }, []);
 
-  // Sync markdown changes to URL (skip initial render)
+  // Sync markdown changes to URL (skip initial render). Debounced — with
+  // continuous editing this fires per keystroke, and browsers throttle
+  // rapid history.replaceState calls.
   useEffect(() => {
-    if (initialized.current) {
-      setMarkdownToHash(markdown);
-    }
-  }, [markdown]);
+    if (!initialized.current) return;
+    const timer = setTimeout(() => setMarkdownToHash(doc.md), 300);
+    return () => clearTimeout(timer);
+  }, [doc.md]);
 
   useEffect(() => {
     const handleHashChange = () => {
       const md = getMarkdownFromHash();
-      if (md && md !== markdown) {
-        setMarkdown(md);
+      if (md) {
+        setDoc((d) => (md !== d.md ? { md, external: d.external + 1 } : d));
       }
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [markdown]);
+  }, []);
+
+  const handleChange = (md) => setDoc((d) => ({ md, external: d.external }));
 
   return (
     <>
-      <TopBar onOpenDialog={() => setIsDialogOpen(true)} />
-      <MarkdownViewer markdown={markdown} />
-      <PasteDialog
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        markdown={markdown}
-        onSave={setMarkdown}
+      <TopBar />
+      <MarkdownViewer
+        markdown={doc.md}
+        externalVersion={doc.external}
+        onChange={handleChange}
       />
     </>
   );

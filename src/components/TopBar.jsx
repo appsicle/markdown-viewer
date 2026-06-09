@@ -1,9 +1,9 @@
 import { useTheme } from '../context/ThemeContext';
 import { useFullscreen } from '../hooks/useFullscreen';
-import { SunIcon, MoonIcon, ExpandIcon, ShrinkIcon, EditIcon } from './Icons';
+import { SunIcon, MoonIcon, ExpandIcon, ShrinkIcon } from './Icons';
 import styles from './TopBar.module.css';
 
-export function TopBar({ onOpenDialog }) {
+export function TopBar() {
   const { theme, toggleTheme } = useTheme();
   const { isFullscreen, toggleFullscreen } = useFullscreen();
 
@@ -18,14 +18,6 @@ export function TopBar({ onOpenDialog }) {
           title={theme === 'light' ? 'Dark mode' : 'Light mode'}
         >
           {theme === 'light' ? <MoonIcon /> : <SunIcon />}
-        </button>
-        <button
-          class={styles.iconButton}
-          onClick={onOpenDialog}
-          aria-label="Edit markdown"
-          title="Edit markdown"
-        >
-          <EditIcon />
         </button>
         <button
           class={styles.iconButton}

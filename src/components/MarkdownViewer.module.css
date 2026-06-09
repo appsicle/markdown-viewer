@@ -14,6 +14,18 @@
   color: var(--color-text-primary);
 }
 
+.viewer {
+  outline: none;
+  cursor: text;
+  min-height: calc(100vh - var(--topbar-height) - 2 * var(--spacing-xl));
+}
+
+.viewer:empty::before {
+  content: 'Start typing\2026';
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
 /* Headings */
 .viewer h1,
 .viewer h2,
